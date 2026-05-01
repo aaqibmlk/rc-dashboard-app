@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle RC Dashboard</title>
+    <!-- Tailwind CSS for rapid, modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+    <!-- Top Navigation -->
+    <nav class="bg-blue-600 text-white p-4 shadow-md">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">RTO Dashboard</h1>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto p-6 mt-8">
+        
+        <!-- Search Section -->
+        <div class="bg-white p-6 rounded-lg shadow-sm mb-8">
+            <h2 class="text-xl font-semibold mb-4">Lookup Vehicle Details</h2>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <input 
+                    type="text" 
+                    id="vehicleNumber" 
+                    placeholder="e.g., UP14XX1234" 
+                    class="flex-1 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                >
+                <button 
+                    onclick="fetchRCDetails()" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-md transition duration-200"
+                >
+                    Search RC
+                </button>
+            </div>
+            <p id="error-msg" class="text-red-500 mt-2 hidden text-sm">Please enter a valid vehicle number.</p>
+        </div>
+
+        <!-- Dashboard Loading State -->
+        <div id="loading" class="hidden text-center py-10">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="text-gray-500 mt-4">Fetching data from RTO...</p>
+        </div>
+
+        <!-- Vehicle Details Card (Hidden by default) -->
+        <div id="rc-card" class="hidden bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="bg-gray-50 border-b border-gray-200 p-4">
+                <h3 class="text-lg font-semibold text-gray-700" id="display-reg">Registration No: ---</h3>
+            </div>
+            
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Data Fields -->
+                <div>
+                    <p class="text-sm text-gray-500">Owner Name</p>
+                    <p class="font-medium text-gray-900" id="owner-name">---</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Vehicle Make / Model</p>
+                    <p class="font-medium text-gray-900" id="maker-model">---</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Registration Date</p>
+                    <p class="font-medium text-gray-900" id="reg-date">---</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Fitness Valid Upto</p>
+                    <p class="font-medium text-gray-900" id="fitness">---</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Fuel Type</p>
+                    <p class="font-medium text-gray-900" id="fuel-type">---</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Insurance Status</p>
+                    <span id="insurance" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                        ---
+                    </span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        async function fetchRCDetails() {
+            const vehicleNo = document.getElementById('vehicleNumber').value.trim().toUpperCase();
+            const errorMsg = document.getElementById('error-msg');
+            const loading = document.getElementById('loading');
+            const rcCard = document.getElementById('rc-card');
+
+            // Basic validation
+            if (vehicleNo.length < 6) {
+                errorMsg.classList.remove('hidden');
+                rcCard.classList.add('hidden');
+                return;
+            }
+            errorMsg.classList.add('hidden');
+
+            // Show loading animation
+            loading.classList.remove('hidden');
+            rcCard.classList.add('hidden');
+
+            try {
+                // 1. Fetch data from your local Node.js server
+                const response = await fetch(`http://localhost:3000/api/rc/${vehicleNo}`);
+                
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const rawApiData = await response.json();
+
+                // 2. Display the real data on the UI
+                console.log("Real Data Received:", rawApiData); 
+
+                document.getElementById('display-reg').innerText = `Registration No: ${vehicleNo}`;
+                document.getElementById('owner-name').innerText = rawApiData.owner_name || "N/A";
+                document.getElementById('maker-model').innerText = rawApiData.maker_model || "N/A";
+                document.getElementById('reg-date').innerText = rawApiData.registration_date || "N/A";
+                document.getElementById('fitness').innerText = rawApiData.fitness_upto || "N/A";
+                document.getElementById('fuel-type').innerText = rawApiData.fuel_type || "N/A";
+
+                // Update Insurance Badge
+                const insuranceBadge = document.getElementById('insurance');
+                const isInsured = rawApiData.insurance_upto !== undefined && rawApiData.insurance_upto !== ""; 
+                
+                if (isInsured) {
+                    insuranceBadge.innerText = "Active";
+                    insuranceBadge.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800";
+                } else {
+                    insuranceBadge.innerText = "Unknown/Expired";
+                    insuranceBadge.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800";
+                }
+
+                // Hide loading, show card
+                loading.classList.add('hidden');
+                rcCard.classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Error fetching real data:", error);
+                loading.classList.add('hidden');
+                alert("Failed to fetch data. Please ensure your local Node.js server is running.");
+            }
+        }
+    </script>
+</body>
+</html>
